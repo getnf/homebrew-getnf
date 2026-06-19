@@ -1,0 +1,146 @@
+name: update formula
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out tap repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get latest getnf release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          json=$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/getnf/getnf/releases/latest)
+
+          version=$(printf '%s' "$json" | jq -r '.tag_name')
+
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "Could not determine latest release tag"
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check current formula version
+        id: current
+        env:
+          LATEST_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          current_url=$(
+            grep -E '^[[:space:]]*url[[:space:]]+"[^"]+"' Formula/getnf.rb \
+            | head -n1 \
+            | sed -E 's/^[[:space:]]*url[[:space:]]+"([^"]+)".*/\1/'
+          )
+
+          if [ -z "$current_url" ]; then
+            echo "Could not find formula url"
+            exit 1
+          fi
+
+          current_version=$(printf '%s\n' "$current_url" | sed -E 's#.*/([^/]+)\.tar\.gz$#\1#')
+
+          if [ -z "$current_version" ] || [ "$current_version" = "$current_url" ]; then
+            echo "Could not determine current formula version"
+            exit 1
+          fi
+
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+
+          if [ "$current_version" = "$LATEST_VERSION" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            echo "Formula already up to date at $LATEST_VERSION"
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+            echo "Formula needs update: $current_version -> $LATEST_VERSION"
+          fi
+
+      - name: Download release tarball and compute SHA256
+        if: steps.current.outputs.up_to_date != 'true'
+        id: source
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          url="https://github.com/getnf/getnf/archive/refs/tags/${VERSION}.tar.gz"
+          curl -fL "$url" -o source.tar.gz
+          sha256=$(sha256sum source.tar.gz | awk '{print $1}')
+
+          if [ -z "$sha256" ]; then
+            echo "Failed to compute SHA256"
+            exit 1
+          fi
+
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Update Formula/getnf.rb
+        if: steps.current.outputs.up_to_date != 'true'
+        env:
+          URL: ${{ steps.source.outputs.url }}
+          SHA256: ${{ steps.source.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+
+          url_matches=$(grep -cE '^[[:space:]]*url[[:space:]]+"[^"]+"' Formula/getnf.rb || true)
+          sha_matches=$(grep -cE '^[[:space:]]*sha256[[:space:]]+"[^"]+"' Formula/getnf.rb || true)
+
+          if [ "$url_matches" -ne 1 ]; then
+            echo "Expected exactly one url line, found $url_matches"
+            exit 1
+          fi
+
+          if [ "$sha_matches" -ne 1 ]; then
+            echo "Expected exactly one sha256 line, found $sha_matches"
+            exit 1
+          fi
+
+          sed -E \
+            -e 's|^[[:space:]]*url[[:space:]]+"[^"]+"|  url "'"$URL"'"|' \
+            -e 's|^[[:space:]]*sha256[[:space:]]+"[^"]+"|  sha256 "'"$SHA256"'"|' \
+            Formula/getnf.rb > Formula/getnf.rb.new
+
+          mv Formula/getnf.rb.new Formula/getnf.rb
+
+      - name: Commit and push changes
+        if: steps.current.outputs.up_to_date != 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+
+          git add Formula/getnf.rb
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "getnf ${VERSION}"
+          git push
