@@ -3,7 +3,7 @@ class Getnf < Formula
   homepage "https://github.com/getnf/getnf"
   url "https://github.com/getnf/getnf/archive/refs/tags/v0.3.0.tar.gz"
   sha256 "80ca53081804c19af7b80ed4b5da958cfae07d1d0ae96998a9341300d2e998e4"
-  license "GPL-3.0"
+  license "GPL-3.0-or-later"
 
   depends_on "curl"
 
@@ -12,6 +12,7 @@ class Getnf < Formula
   end
 
   test do
-    assert_match "Show the help message", shell_output("#{bin}/getnf -h")
+    output = shell_output("#{bin}/getnf -h")
+    assert_match "display this help message", output
   end
 end
