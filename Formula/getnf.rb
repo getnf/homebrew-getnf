@@ -9,11 +9,11 @@ class Getnf < Formula
 
   def install
     bin.install "getnf"
+    man1.install "man/getnf.1" if File.exist?("man/getnf.1")
   end
 
   test do
-    output = shell_output("#{bin}/getnf -h")
-    assert_match "Usage:", output
-    assert_match "getnf [options]", output
+    assert_match "getnf [options]", shell_output("#{bin}/getnf -h")
+    assert_match version.to_s, shell_output("#{bin}/getnf -V").strip
   end
 end
