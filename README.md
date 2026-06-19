@@ -1,18 +1,14 @@
-# Getnf Getnf
+# Getnf
 
-## How do I install these formulae?
+## How do I install getnf?
 
-`brew install getnf/getnf/<formula>`
+`brew install getnf/getnf/getnf`
 
-Or `brew tap getnf/getnf` and then `brew install <formula>`.
+Or `brew tap getnf/getnf` and then `brew install getnf`.
 
 Or, in a `brew bundle` `Brewfile`:
 
 ```ruby
 tap "getnf/getnf"
-brew "<formula>"
+brew "getnf"
 ```
-
-## Documentation
-
-`brew help`, `man brew` or check [Homebrew's documentation](https://docs.brew.sh).
