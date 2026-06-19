@@ -13,6 +13,7 @@ class Getnf < Formula
 
   test do
     output = shell_output("#{bin}/getnf -h")
-    assert_match "display this help message", output
+    assert_match "Usage:", output
+    assert_match "getnf [options]", output
   end
 end
