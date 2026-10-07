@@ -1,8 +1,8 @@
 class Getnf < Formula
   desc "Install Nerd Fonts from the terminal"
   homepage "https://github.com/getnf/getnf"
-  url "https://github.com/getnf/getnf/archive/refs/tags/v0.3.0.tar.gz"
-  sha256 "80ca53081804c19af7b80ed4b5da958cfae07d1d0ae96998a9341300d2e998e4"
+  url "https://github.com/getnf/getnf/archive/refs/tags/v0.4.0.tar.gz"
+  sha256 "35f2e859e2e6e0a8ed30bb2b691e23cd9270f6fb64c330b72269eaca76658d9b"
   license "GPL-3.0-or-later"
 
   depends_on "curl"
